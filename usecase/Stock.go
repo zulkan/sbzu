@@ -11,17 +11,63 @@ type stockUseCase struct {
 	stockRepo    domain.StockRepo
 }
 
-func (s stockUseCase) ProcessQueueMessage(rawData string) error {
+func (s *stockUseCase) ProcessQueueMessage(rawData string) error {
 	stockRecord := utils.ReadJSON[domain.StockRecord](rawData)
 
 	return s.WriteStockSummary(stockRecord)
 }
 
-//publish to kafka
+// ProcessFileData publish to kafka from input from file
 func (s *stockUseCase) ProcessFileData(rawData string) error {
 	stockRecord := utils.ReadJSON[domain.StockRecord](rawData)
 
 	return s.queueUseCase.PublishMessage(stockRecord.StockCode, rawData)
+}
+
+func initiateStockSummary(record *domain.StockRecord) *domain.StockSummary {
+	var stockSummary *domain.StockSummary
+	if record.Type == "A" {
+		stockSummary = &domain.StockSummary{
+			StockCode: record.StockCode,
+			Open:      0,
+			High:      0,
+			Low:       0,
+			Close:     0,
+			Prev:      record.Price,
+		}
+	} else {
+		stockSummary = &domain.StockSummary{
+			StockCode: record.StockCode,
+			Open:      record.Price,
+			High:      record.Price,
+			Low:       record.Price,
+			Close:     record.Price,
+			Volume:    record.Quantity,
+			Value:     record.Quantity * record.Price,
+			AvgPrice:  float64(record.Price),
+		}
+	}
+	return stockSummary
+}
+
+func updateStockSummary(stockSummary *domain.StockSummary, record *domain.StockRecord) {
+	if record.Type == "A" {
+		stockSummary.Prev = record.Price
+	} else {
+		if stockSummary.Open == 0 {
+			stockSummary.Open = record.Price
+		}
+		stockSummary.Close = record.Price
+		if record.Price < stockSummary.Low {
+			stockSummary.Low = record.Price
+		}
+		if record.Price > stockSummary.High {
+			stockSummary.High = record.Price
+		}
+		stockSummary.Volume += record.Quantity
+		stockSummary.Value += record.Quantity * record.Price
+		stockSummary.AvgPrice = float64(stockSummary.Value) / float64(stockSummary.Volume)
+	}
 }
 
 func (s *stockUseCase) WriteStockSummary(record *domain.StockRecord) error {
@@ -31,45 +77,9 @@ func (s *stockUseCase) WriteStockSummary(record *domain.StockRecord) error {
 		return err
 	}
 	if err == redis.Nil {
-		if record.Type == "A" {
-			stockSummary = &domain.StockSummary{
-				StockCode: record.StockCode,
-				Open:      0,
-				High:      0,
-				Low:       0,
-				Close:     0,
-				Prev:      record.Price,
-			}
-		} else {
-			stockSummary = &domain.StockSummary{
-				StockCode: record.StockCode,
-				Open:      record.Price,
-				High:      record.Price,
-				Low:       record.Price,
-				Close:     record.Price,
-				Volume:    record.Quantity,
-				Value:     record.Quantity * record.Price,
-				AvgPrice:  float64(record.Price),
-			}
-		}
+		stockSummary = initiateStockSummary(record)
 	} else {
-		if record.Type == "A" {
-			stockSummary.Prev = record.Price
-		} else {
-			if stockSummary.Open == 0 {
-				stockSummary.Open = record.Price
-			}
-			stockSummary.Close = record.Price
-			if record.Price < stockSummary.Low {
-				stockSummary.Low = record.Price
-			}
-			if record.Price > stockSummary.High {
-				stockSummary.High = record.Price
-			}
-			stockSummary.Volume += record.Quantity
-			stockSummary.Value += record.Quantity * record.Price
-			stockSummary.AvgPrice = float64(stockSummary.Value) / float64(stockSummary.Volume)
-		}
+		updateStockSummary(stockSummary, record)
 	}
 	return s.stockRepo.WriteStockSummary(stockSummary)
 }

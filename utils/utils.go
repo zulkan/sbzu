@@ -5,6 +5,7 @@ import (
 	"github.com/go-redis/redis"
 	"log"
 	"strconv"
+	"time"
 )
 
 func ReadJSON[T any](s string) *T {
@@ -31,8 +32,8 @@ func ToInt64(input string) int64 {
 	return val
 }
 
-func WriteRedis(redisClient *redis.Client, key, value string) error {
-	return redisClient.Set(key, value, 0).Err()
+func WriteRedis(redisClient *redis.Client, key, value string, duration time.Duration) error {
+	return redisClient.Set(key, value, duration).Err()
 }
 
 func ReadRedis(redisClient *redis.Client, key string) (string, error) {

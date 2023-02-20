@@ -5,6 +5,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/go-redis/redis"
 	"github.com/joho/godotenv"
+	"gozu/constant"
 	"gozu/domain"
 	"gozu/repo"
 	"gozu/usecase"
@@ -77,8 +78,7 @@ func getProducer() (*kafka.Producer, error) {
 
 func getConsumer(topic string) (*kafka.Consumer, error) {
 	kafkaConfig := ReadConfig()
-	kafkaConfig["group.id"] = "zulkan"
-	//kafkaConfig["group.id"] = "lkc-r56x0k"
+	kafkaConfig["group.id"] = constant.KAFKA_GROUP_ID
 	kafkaConfig["auto.offset.reset"] = "earliest"
 	kafkaConfig["session.timeout.ms"] = os.Getenv("KAFKA_SESSION_TIMEOUT")
 
@@ -121,14 +121,14 @@ func readFiles(useCase domain.StockUseCase) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	files := []string{}
+	var files []string
 	for _, e := range entries {
 		files = append(files, e.Name())
 	}
 	sort.Strings(files)
 
 	for _, e := range files {
-		content, _ := os.ReadFile("./subsetdata/" + e) //nolint:gosec
+		content, _ := os.ReadFile("./subsetdata/" + e) //nolint:gosec //because just looping our own files
 		lineData := strings.Split(string(content), "\n")
 		for _, data := range lineData {
 			err = processRawDataToKafka(data, useCase)
@@ -162,7 +162,6 @@ func processRawDataToKafka(data string, useCase domain.StockUseCase) error {
 	if record.Price != 0 {
 		err := useCase.ProcessFileData(utils.ToJSON(record))
 		if err != nil {
-			//log.Fatal(err)
 			log.Println(err)
 			return err
 		}
@@ -171,7 +170,6 @@ func processRawDataToKafka(data string, useCase domain.StockUseCase) error {
 }
 
 func main() {
-	topicName := "zul-test"
 	redisClient := initRedis()
 	stockRepo := repo.NewStockRepo(redisClient)
 
@@ -182,11 +180,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	kafkaConsumer, err = getConsumer(topicName)
+	kafkaConsumer, err = getConsumer(constant.KAFKA_STOCK_TOPIC)
 	if err != nil {
 		log.Fatal(err)
 	}
-	queue := usecase.NewQueueUseCase(topicName, kafkaConsumer, kafkaProducer)
+	queue := usecase.NewQueueUseCase(constant.KAFKA_STOCK_TOPIC, kafkaConsumer, kafkaProducer)
 
 	stockUseCase := usecase.NewStockUseCase(queue, stockRepo)
 
