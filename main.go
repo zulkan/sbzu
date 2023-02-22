@@ -1,11 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/go-redis/redis"
-	"github.com/joho/godotenv"
 	"gozu/constant"
+	"gozu/delivery/grpc"
 	gozuQueue "gozu/delivery/queue"
 	"gozu/domain"
 	"gozu/repo"
@@ -16,6 +15,10 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/go-redis/redis"
+	"github.com/joho/godotenv"
 )
 
 var (
@@ -65,7 +68,7 @@ func readFiles(useCase domain.StockUseCase) {
 		content, _ := os.ReadFile("./subsetdata/" + e) //nolint:gosec //because just looping our own files
 		lineData := strings.Split(string(content), "\n")
 		for _, data := range lineData {
-			err = useCase.ProcessFileData(data)
+			err = useCase.ProcessFileData(context.Background(), data)
 
 			if err != nil {
 				return
@@ -85,16 +88,23 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	kafkaConsumer, err = gozuQueue.GetConsumer(constant.KAFKA_STOCK_TOPIC)
+	kafkaConsumer, err = gozuQueue.GetConsumer(constant.KafkaStockTopic)
 	if err != nil {
 		log.Fatal(err)
 	}
-	queue := usecase.NewQueueUseCase(constant.KAFKA_STOCK_TOPIC, kafkaConsumer, kafkaProducer)
+	queue := usecase.NewQueueUseCase(constant.KafkaStockTopic, kafkaConsumer, kafkaProducer)
 
 	stockUseCase := usecase.NewStockUseCase(queue, stockRepo)
 
-	readFiles(stockUseCase)
+	go func() {
+		readFiles(stockUseCase)
+	}()
 	gozuQueue.ReadAndProcessKafka(&IsRunning, queue, stockUseCase)
+
+	// init grpc server
+	go func() {
+		grpc.NewGrpcServer(stockUseCase)
+	}()
 
 	// Set up a channel for handling Ctrl-C, etc
 	sigchan := make(chan os.Signal, 1)

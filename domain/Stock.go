@@ -1,5 +1,7 @@
 package domain
 
+import "context"
+
 //go:generate mockery --name StockRepo
 //go:generate mockery --name StockUseCase
 
@@ -22,13 +24,13 @@ type StockSummary struct {
 }
 
 type StockRepo interface {
-	WriteStockSummary(summary *StockSummary) error
-	GetStockSummary(stockCode string) (*StockSummary, error)
+	WriteStockSummary(ctx context.Context, summary *StockSummary) error
+	GetStockSummary(ctx context.Context, stockCode string) (*StockSummary, error)
 }
 
 type StockUseCase interface {
 	QueueProcessor // shows this interface can process kafka message
-	ProcessFileData(rawData string) error
-	WriteStockSummary(record *StockRecord) error
-	GetStockSummary(stockCode string) (*StockSummary, error)
+	ProcessFileData(ctx context.Context, rawData string) error
+	WriteStockSummary(ctx context.Context, record *StockRecord) error
+	GetStockSummary(ctx context.Context, stockCode string) (*StockSummary, error)
 }

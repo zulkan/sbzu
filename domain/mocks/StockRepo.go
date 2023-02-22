@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	context "context"
 	domain "gozu/domain"
 
 	mock "github.com/stretchr/testify/mock"
@@ -13,25 +14,25 @@ type StockRepo struct {
 	mock.Mock
 }
 
-// GetStockSummary provides a mock function with given fields: stockCode
-func (_m *StockRepo) GetStockSummary(stockCode string) (*domain.StockSummary, error) {
-	ret := _m.Called(stockCode)
+// GetStockSummary provides a mock function with given fields: ctx, stockCode
+func (_m *StockRepo) GetStockSummary(ctx context.Context, stockCode string) (*domain.StockSummary, error) {
+	ret := _m.Called(ctx, stockCode)
 
 	var r0 *domain.StockSummary
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (*domain.StockSummary, error)); ok {
-		return rf(stockCode)
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.StockSummary, error)); ok {
+		return rf(ctx, stockCode)
 	}
-	if rf, ok := ret.Get(0).(func(string) *domain.StockSummary); ok {
-		r0 = rf(stockCode)
+	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.StockSummary); ok {
+		r0 = rf(ctx, stockCode)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*domain.StockSummary)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(stockCode)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, stockCode)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -39,13 +40,13 @@ func (_m *StockRepo) GetStockSummary(stockCode string) (*domain.StockSummary, er
 	return r0, r1
 }
 
-// WriteStockSummary provides a mock function with given fields: summary
-func (_m *StockRepo) WriteStockSummary(summary *domain.StockSummary) error {
-	ret := _m.Called(summary)
+// WriteStockSummary provides a mock function with given fields: ctx, summary
+func (_m *StockRepo) WriteStockSummary(ctx context.Context, summary *domain.StockSummary) error {
+	ret := _m.Called(ctx, summary)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*domain.StockSummary) error); ok {
-		r0 = rf(summary)
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.StockSummary) error); ok {
+		r0 = rf(ctx, summary)
 	} else {
 		r0 = ret.Error(0)
 	}

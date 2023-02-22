@@ -1,11 +1,11 @@
 package usecase
 
 import (
-	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"context"
 	"gozu/domain"
-	"log"
 	"time"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 type kafkaQueue struct {
@@ -14,7 +14,7 @@ type kafkaQueue struct {
 	TopicName     string
 }
 
-func (k *kafkaQueue) ReadMessage() (key string, value string, err error) {
+func (k *kafkaQueue) ReadMessage(context.Context) (key string, value string, err error) {
 	ev, err := k.KafkaConsumer.ReadMessage(100 * time.Millisecond)
 
 	if err != nil {
@@ -24,12 +24,12 @@ func (k *kafkaQueue) ReadMessage() (key string, value string, err error) {
 	return string(ev.Key), string(ev.Value), nil
 }
 
-func (k *kafkaQueue) GetTopicName() string {
+func (k *kafkaQueue) GetTopicName(context.Context) string {
 	return k.TopicName
 }
 
-func (k *kafkaQueue) PublishMessage(key, value string) error {
-	fmt.Println("PublishMessage ", k.TopicName, key, value)
+func (k *kafkaQueue) PublishMessage(_ context.Context, key, value string) error {
+	// fmt.Println("PublishMessage ", k.TopicName, key, value)
 	return k.KafkaProducer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &k.TopicName, Partition: kafka.PartitionAny},
 		Key:            []byte(key),
@@ -38,18 +38,19 @@ func (k *kafkaQueue) PublishMessage(key, value string) error {
 }
 
 func NewQueueUseCase(topicName string, kafkaConsumer *kafka.Consumer, kafkaProducer *kafka.Producer) domain.QueueUseCase {
-	go func() {
-		for e := range kafkaProducer.Events() {
-			if ev, ok := e.(*kafka.Message); ok {
-				if ev.TopicPartition.Error != nil {
-					log.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
-				} else {
-					log.Printf("Produced event to topic %s: key = %-10s value = %s\n",
-						*ev.TopicPartition.Topic, string(ev.Key), string(ev.Value))
-				}
-			}
-		}
-	}()
+	// To debug producer
+	// go func() {
+	//	for e := range kafkaProducer.Events() {
+	//		if ev, ok := e.(*kafka.Message); ok {
+	//			if ev.TopicPartition.Error != nil {
+	//				log.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
+	//			} else {
+	//				log.Printf("Produced event to topic %s: key = %-10s value = %s\n",
+	//					*ev.TopicPartition.Topic, string(ev.Key), string(ev.Value))
+	//			}
+	//		}
+	//	}
+	// }()
 
 	return &kafkaQueue{KafkaConsumer: kafkaConsumer, KafkaProducer: kafkaProducer, TopicName: topicName}
 }

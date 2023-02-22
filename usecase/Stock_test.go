@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"github.com/go-redis/redis"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -87,7 +88,7 @@ func (s *StockTestSuite) TestProcessFileData_Type_A_NoPublish() {
 
 	useCase := NewStockUseCase(mockQueue, nil)
 
-	err := useCase.ProcessFileData(lineRawData)
+	err := useCase.ProcessFileData(context.Background(), lineRawData)
 
 	mockQueue.AssertNotCalled(s.T(), "PublishMessage", mock.Anything, mock.Anything)
 	s.Nil(err)
@@ -107,9 +108,9 @@ func (s *StockTestSuite) TestProcessFileData_Type_A_Publish() {
 	mockQueue := mocks.NewQueueUseCase(s.T())
 
 	useCase := NewStockUseCase(mockQueue, nil)
-	mockQueue.On("PublishMessage", "TLKM", utils.ToJSON(expectedRecord)).Return(nil)
+	mockQueue.On("PublishMessage", context.Background(), "TLKM", utils.ToJSON(expectedRecord)).Return(nil)
 
-	err := useCase.ProcessFileData(lineRawData)
+	err := useCase.ProcessFileData(context.Background(), lineRawData)
 
 	mockQueue.AssertNumberOfCalls(s.T(), "PublishMessage", 1)
 	s.Nil(err)
@@ -130,9 +131,9 @@ func (s *StockTestSuite) TestProcessFileData_Type_P_E_Publish() {
 	mockQueue := mocks.NewQueueUseCase(s.T())
 
 	useCase := NewStockUseCase(mockQueue, nil)
-	mockQueue.On("PublishMessage", expectedRecord.StockCode, utils.ToJSON(expectedRecord)).Return(nil)
+	mockQueue.On("PublishMessage", context.Background(), expectedRecord.StockCode, utils.ToJSON(expectedRecord)).Return(nil)
 
-	err := useCase.ProcessFileData(lineRawData)
+	err := useCase.ProcessFileData(context.Background(), lineRawData)
 
 	mockQueue.AssertNumberOfCalls(s.T(), "PublishMessage", 1)
 	s.Nil(err)
@@ -151,10 +152,10 @@ func (s *StockTestSuite) TestWriteStockSummary_init() {
 
 	useCase := NewStockUseCase(mockQueue, mockRepo)
 
-	mockRepo.On("GetStockSummary", record.StockCode).Return(nil, redis.Nil)
-	mockRepo.On("WriteStockSummary", summary).Return(nil)
+	mockRepo.On("GetStockSummary", context.Background(), record.StockCode).Return(nil, redis.Nil)
+	mockRepo.On("WriteStockSummary", context.Background(), summary).Return(nil)
 
-	err := useCase.WriteStockSummary(record)
+	err := useCase.WriteStockSummary(context.Background(), record)
 
 	mockRepo.AssertNumberOfCalls(s.T(), "GetStockSummary", 1)
 	mockRepo.AssertNumberOfCalls(s.T(), "WriteStockSummary", 1)
@@ -196,10 +197,10 @@ func (s *StockTestSuite) TestWriteStockSummary_updateStock() {
 
 	useCase := NewStockUseCase(mockQueue, mockRepo)
 
-	mockRepo.On("GetStockSummary", record.StockCode).Return(oldSummary, nil)
-	mockRepo.On("WriteStockSummary", newSummary).Return(nil)
+	mockRepo.On("GetStockSummary", context.Background(), record.StockCode).Return(oldSummary, nil)
+	mockRepo.On("WriteStockSummary", context.Background(), newSummary).Return(nil)
 
-	err := useCase.WriteStockSummary(record)
+	err := useCase.WriteStockSummary(context.Background(), record)
 
 	mockRepo.AssertNumberOfCalls(s.T(), "GetStockSummary", 1)
 	mockRepo.AssertNumberOfCalls(s.T(), "WriteStockSummary", 1)

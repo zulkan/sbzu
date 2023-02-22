@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package grpc;
+option go_package = "./grpc";
+
+
+message StockSummaryRequest {
+  string stockCode = 1;
+}
+
+
+message StockSummaryResponse {
+  string stockCode = 1;
+  int64 open = 2;
+  int64 high = 3;
+  int64 low = 4;
+  int64 close = 5;
+  int64 prev = 6;
+  int64 volume = 7;
+  int64 value = 8;
+  int64 avgPrice = 9;
+}
+
+service StockService {
+  rpc GetStockSummary(StockSummaryRequest) returns (StockSummaryResponse);
+}
+
+//    type StockSummary struct {
+//StockCode string  `json:"stock_code"`
+//    Open      int64   `json:"open"`
+//    High      int64   `json:"high"`
+//    Low       int64   `json:"low"`
+//    Close     int64   `json:"close"`
+//    Prev      int64   `json:"prev"`
+//    Volume    int64   `json:"volume"`
+//    Value     int64   `json:"value"`
+//    AvgPrice  float64 `json:"avg_price"`
+//    }

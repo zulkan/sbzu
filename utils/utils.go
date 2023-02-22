@@ -2,10 +2,11 @@ package utils
 
 import (
 	"encoding/json"
-	"github.com/go-redis/redis"
 	"log"
 	"strconv"
 	"time"
+
+	"github.com/go-redis/redis"
 )
 
 func ReadJSON[T any](s string) *T {

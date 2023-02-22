@@ -1,27 +1,30 @@
 package queue
 
 import (
+	"context"
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"gozu/constant"
 	"gozu/domain"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 func ReadAndProcessKafka(isRunning *bool, consumer domain.QueueUseCase, processor domain.QueueProcessor) {
 	// Process messages
 	go func() {
+		ctx := context.Background()
 		for *isRunning {
-			_, value, err := consumer.ReadMessage()
+			_, value, err := consumer.ReadMessage(ctx)
 			if err != nil {
 				// Errors are informational and automatically handled by the consumer
 				continue
 			}
 			// fmt.Printf("Consumed event from topic %s: key = %-10s value = %s\n",
 			// consumer.GetTopicName(), key, value)
-			err = processor.ProcessQueueMessage(value)
+			err = processor.ProcessQueueMessage(ctx, value)
 
 			if err != nil {
 				log.Println(err)
@@ -32,7 +35,7 @@ func ReadAndProcessKafka(isRunning *bool, consumer domain.QueueUseCase, processo
 
 func GetConsumer(topic string) (*kafka.Consumer, error) {
 	kafkaConfig := ReadConfig()
-	kafkaConfig["group.id"] = constant.KAFKA_GROUP_ID
+	kafkaConfig["group.id"] = constant.KafkaGroupId
 	kafkaConfig["auto.offset.reset"] = "earliest"
 	kafkaConfig["session.timeout.ms"] = os.Getenv("KAFKA_SESSION_TIMEOUT")
 

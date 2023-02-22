@@ -1,11 +1,13 @@
 package usecase
 
 import (
-	"github.com/go-redis/redis"
+	"context"
 	"gozu/domain"
 	"gozu/utils"
 	"log"
 	"strings"
+
+	"github.com/go-redis/redis"
 )
 
 type stockUseCase struct {
@@ -13,15 +15,16 @@ type stockUseCase struct {
 	stockRepo    domain.StockRepo
 }
 
-func (s *stockUseCase) ProcessQueueMessage(rawData string) error {
+func (s *stockUseCase) ProcessQueueMessage(ctx context.Context, rawData string) error {
 	stockRecord := utils.ReadJSON[domain.StockRecord](rawData)
-	log.Println("Process from", rawData, "to", utils.ToJSON(stockRecord))
+	// To debug process queue
+	// log.Println("Process from", rawData, "to", utils.ToJSON(stockRecord))
 
-	return s.WriteStockSummary(stockRecord)
+	return s.WriteStockSummary(ctx, stockRecord)
 }
 
 // ProcessFileData publish to kafka from input from file
-func (s *stockUseCase) ProcessFileData(rawData string) error {
+func (s *stockUseCase) ProcessFileData(ctx context.Context, rawData string) error {
 	dataMap := utils.ReadJSON[map[string]interface{}](rawData)
 	dataType := (*dataMap)["type"]
 	record := domain.StockRecord{}
@@ -42,7 +45,7 @@ func (s *stockUseCase) ProcessFileData(rawData string) error {
 
 	// the data is valid, initiated from one of condition above
 	if record.Price != 0 {
-		return s.queueUseCase.PublishMessage(record.StockCode, utils.ToJSON(record))
+		return s.queueUseCase.PublishMessage(ctx, record.StockCode, utils.ToJSON(record))
 	}
 	return nil
 }
@@ -93,11 +96,11 @@ func updateStockSummary(stockSummary *domain.StockSummary, record *domain.StockR
 	}
 }
 
-func (s *stockUseCase) WriteStockSummary(record *domain.StockRecord) error {
+func (s *stockUseCase) WriteStockSummary(ctx context.Context, record *domain.StockRecord) error {
 	if record == nil || strings.TrimSpace(record.StockCode) == "" {
 		return nil
 	}
-	stockSummary, err := s.GetStockSummary(record.StockCode)
+	stockSummary, err := s.GetStockSummary(ctx, record.StockCode)
 
 	if err != nil && err != redis.Nil {
 		log.Println("Failed when process", record.StockCode, err)
@@ -108,11 +111,11 @@ func (s *stockUseCase) WriteStockSummary(record *domain.StockRecord) error {
 	} else {
 		updateStockSummary(stockSummary, record)
 	}
-	return s.stockRepo.WriteStockSummary(stockSummary)
+	return s.stockRepo.WriteStockSummary(ctx, stockSummary)
 }
 
-func (s *stockUseCase) GetStockSummary(stockCode string) (*domain.StockSummary, error) {
-	return s.stockRepo.GetStockSummary(stockCode)
+func (s *stockUseCase) GetStockSummary(ctx context.Context, stockCode string) (*domain.StockSummary, error) {
+	return s.stockRepo.GetStockSummary(ctx, stockCode)
 }
 
 func NewStockUseCase(queueUseCase domain.QueueUseCase, stockRepo domain.StockRepo) domain.StockUseCase {

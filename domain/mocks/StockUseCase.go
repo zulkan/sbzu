@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	context "context"
 	domain "gozu/domain"
 
 	mock "github.com/stretchr/testify/mock"
@@ -13,25 +14,25 @@ type StockUseCase struct {
 	mock.Mock
 }
 
-// GetStockSummary provides a mock function with given fields: stockCode
-func (_m *StockUseCase) GetStockSummary(stockCode string) (*domain.StockSummary, error) {
-	ret := _m.Called(stockCode)
+// GetStockSummary provides a mock function with given fields: ctx, stockCode
+func (_m *StockUseCase) GetStockSummary(ctx context.Context, stockCode string) (*domain.StockSummary, error) {
+	ret := _m.Called(ctx, stockCode)
 
 	var r0 *domain.StockSummary
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (*domain.StockSummary, error)); ok {
-		return rf(stockCode)
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.StockSummary, error)); ok {
+		return rf(ctx, stockCode)
 	}
-	if rf, ok := ret.Get(0).(func(string) *domain.StockSummary); ok {
-		r0 = rf(stockCode)
+	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.StockSummary); ok {
+		r0 = rf(ctx, stockCode)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*domain.StockSummary)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(stockCode)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, stockCode)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -39,13 +40,13 @@ func (_m *StockUseCase) GetStockSummary(stockCode string) (*domain.StockSummary,
 	return r0, r1
 }
 
-// ProcessFileData provides a mock function with given fields: rawData
-func (_m *StockUseCase) ProcessFileData(rawData string) error {
-	ret := _m.Called(rawData)
+// ProcessFileData provides a mock function with given fields: ctx, rawData
+func (_m *StockUseCase) ProcessFileData(ctx context.Context, rawData string) error {
+	ret := _m.Called(ctx, rawData)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(rawData)
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, rawData)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -53,13 +54,13 @@ func (_m *StockUseCase) ProcessFileData(rawData string) error {
 	return r0
 }
 
-// ProcessQueueMessage provides a mock function with given fields: rawData
-func (_m *StockUseCase) ProcessQueueMessage(rawData string) error {
-	ret := _m.Called(rawData)
+// ProcessQueueMessage provides a mock function with given fields: ctx, rawData
+func (_m *StockUseCase) ProcessQueueMessage(ctx context.Context, rawData string) error {
+	ret := _m.Called(ctx, rawData)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(rawData)
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, rawData)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -67,13 +68,13 @@ func (_m *StockUseCase) ProcessQueueMessage(rawData string) error {
 	return r0
 }
 
-// WriteStockSummary provides a mock function with given fields: record
-func (_m *StockUseCase) WriteStockSummary(record *domain.StockRecord) error {
-	ret := _m.Called(record)
+// WriteStockSummary provides a mock function with given fields: ctx, record
+func (_m *StockUseCase) WriteStockSummary(ctx context.Context, record *domain.StockRecord) error {
+	ret := _m.Called(ctx, record)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*domain.StockRecord) error); ok {
-		r0 = rf(record)
+	if rf, ok := ret.Get(0).(func(context.Context, *domain.StockRecord) error); ok {
+		r0 = rf(ctx, record)
 	} else {
 		r0 = ret.Error(0)
 	}
