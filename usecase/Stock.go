@@ -4,6 +4,8 @@ import (
 	"github.com/go-redis/redis"
 	"gozu/domain"
 	"gozu/utils"
+	"log"
+	"strings"
 )
 
 type stockUseCase struct {
@@ -13,15 +15,36 @@ type stockUseCase struct {
 
 func (s *stockUseCase) ProcessQueueMessage(rawData string) error {
 	stockRecord := utils.ReadJSON[domain.StockRecord](rawData)
+	log.Println("Process from", rawData, "to", utils.ToJSON(stockRecord))
 
 	return s.WriteStockSummary(stockRecord)
 }
 
 // ProcessFileData publish to kafka from input from file
 func (s *stockUseCase) ProcessFileData(rawData string) error {
-	stockRecord := utils.ReadJSON[domain.StockRecord](rawData)
+	dataMap := utils.ReadJSON[map[string]interface{}](rawData)
+	dataType := (*dataMap)["type"]
+	record := domain.StockRecord{}
+	record.Type = dataType.(string)
 
-	return s.queueUseCase.PublishMessage(stockRecord.StockCode, rawData)
+	if dataType == "A" {
+		if (*dataMap)["quantity"] == "0" {
+			record.Quantity = 0
+			record.Price = utils.ToInt64((*dataMap)["price"].(string))
+			record.StockCode = (*dataMap)["stock_code"].(string)
+		}
+	}
+	if dataType == "E" || dataType == "P" {
+		record.Quantity = utils.ToInt64((*dataMap)["executed_quantity"].(string))
+		record.Price = utils.ToInt64((*dataMap)["execution_price"].(string))
+		record.StockCode = (*dataMap)["stock_code"].(string)
+	}
+
+	// the data is valid, initiated from one of condition above
+	if record.Price != 0 {
+		return s.queueUseCase.PublishMessage(record.StockCode, utils.ToJSON(record))
+	}
+	return nil
 }
 
 func initiateStockSummary(record *domain.StockRecord) *domain.StockSummary {
@@ -71,9 +94,13 @@ func updateStockSummary(stockSummary *domain.StockSummary, record *domain.StockR
 }
 
 func (s *stockUseCase) WriteStockSummary(record *domain.StockRecord) error {
+	if record == nil || strings.TrimSpace(record.StockCode) == "" {
+		return nil
+	}
 	stockSummary, err := s.GetStockSummary(record.StockCode)
 
 	if err != nil && err != redis.Nil {
+		log.Println("Failed when process", record.StockCode, err)
 		return err
 	}
 	if err == redis.Nil {

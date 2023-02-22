@@ -6,10 +6,10 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/joho/godotenv"
 	"gozu/constant"
+	gozuQueue "gozu/delivery/queue"
 	"gozu/domain"
 	"gozu/repo"
 	"gozu/usecase"
-	"gozu/utils"
 	"log"
 	"os"
 	"os/signal"
@@ -50,72 +50,6 @@ func initRedis() *redis.Client {
 	return client
 }
 
-func ReadConfig() kafka.ConfigMap {
-	m := make(map[string]kafka.ConfigValue)
-
-	m["bootstrap.servers"] = strings.TrimSpace(os.Getenv("KAFKA_BOOTSTRAP_SERVERS"))
-	m["security.protocol"] = strings.TrimSpace(os.Getenv("KAFKA_SECURITY_PROTOCOL"))
-	m["sasl.mechanisms"] = strings.TrimSpace(os.Getenv("KAFKA_SASL_MECHANISM"))
-	m["sasl.username"] = strings.TrimSpace(os.Getenv("KAFKA_API_KEY"))
-	m["sasl.password"] = strings.TrimSpace(os.Getenv("KAFKA_API_SECRET"))
-
-	return m
-}
-
-func getProducer() (*kafka.Producer, error) {
-	kafkaConfig := ReadConfig()
-
-	fmt.Println(kafkaConfig)
-	kafkaProducer, err := kafka.NewProducer(&kafkaConfig)
-
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-
-	return kafkaProducer, nil
-}
-
-func getConsumer(topic string) (*kafka.Consumer, error) {
-	kafkaConfig := ReadConfig()
-	kafkaConfig["group.id"] = constant.KAFKA_GROUP_ID
-	kafkaConfig["auto.offset.reset"] = "earliest"
-	kafkaConfig["session.timeout.ms"] = os.Getenv("KAFKA_SESSION_TIMEOUT")
-
-	kafkaConsumer, err := kafka.NewConsumer(&kafkaConfig)
-	fmt.Println(kafkaConfig)
-
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-	err = kafkaConsumer.SubscribeTopics([]string{topic}, nil)
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-	return kafkaConsumer, nil
-}
-func readKafka(consumer domain.QueueUseCase, processor domain.QueueProcessor) {
-	// Process messages
-	go func() {
-		for IsRunning {
-			_, value, err := consumer.ReadMessage()
-			if err != nil {
-				// Errors are informational and automatically handled by the consumer
-				continue
-			}
-			// fmt.Printf("Consumed event from topic %s: key = %-10s value = %s\n",
-			// consumer.GetTopicName(), key, value)
-			err = processor.ProcessQueueMessage(value)
-
-			if err != nil {
-				log.Println(err)
-			}
-		}
-	}()
-}
-
 func readFiles(useCase domain.StockUseCase) {
 	entries, err := os.ReadDir("./subsetdata")
 	if err != nil {
@@ -131,42 +65,13 @@ func readFiles(useCase domain.StockUseCase) {
 		content, _ := os.ReadFile("./subsetdata/" + e) //nolint:gosec //because just looping our own files
 		lineData := strings.Split(string(content), "\n")
 		for _, data := range lineData {
-			err = processRawDataToKafka(data, useCase)
+			err = useCase.ProcessFileData(data)
 
 			if err != nil {
 				return
 			}
 		}
 	}
-}
-
-func processRawDataToKafka(data string, useCase domain.StockUseCase) error {
-	dataMap := utils.ReadJSON[map[string]interface{}](data)
-	dataType := (*dataMap)["type"]
-	record := domain.StockRecord{}
-	record.Type = dataType.(string)
-
-	if dataType == "A" {
-		if (*dataMap)["quantity"] == "0" {
-			record.Quantity = 0
-			record.Price = utils.ToInt64((*dataMap)["price"].(string))
-			record.StockCode = (*dataMap)["stock_code"].(string)
-		}
-	}
-	if dataType == "E" || dataType == "P" {
-		record.Quantity = utils.ToInt64((*dataMap)["executed_quantity"].(string))
-		record.Price = utils.ToInt64((*dataMap)["execution_price"].(string))
-		record.StockCode = (*dataMap)["stock_code"].(string)
-	}
-
-	if record.Price != 0 {
-		err := useCase.ProcessFileData(utils.ToJSON(record))
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-	}
-	return nil
 }
 
 func main() {
@@ -176,11 +81,11 @@ func main() {
 	var err error
 	var kafkaProducer *kafka.Producer
 	var kafkaConsumer *kafka.Consumer
-	kafkaProducer, err = getProducer()
+	kafkaProducer, err = gozuQueue.GetProducer()
 	if err != nil {
 		log.Fatal(err)
 	}
-	kafkaConsumer, err = getConsumer(constant.KAFKA_STOCK_TOPIC)
+	kafkaConsumer, err = gozuQueue.GetConsumer(constant.KAFKA_STOCK_TOPIC)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -189,7 +94,7 @@ func main() {
 	stockUseCase := usecase.NewStockUseCase(queue, stockRepo)
 
 	readFiles(stockUseCase)
-	readKafka(queue, stockUseCase)
+	gozuQueue.ReadAndProcessKafka(&IsRunning, queue, stockUseCase)
 
 	// Set up a channel for handling Ctrl-C, etc
 	sigchan := make(chan os.Signal, 1)

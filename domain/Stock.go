@@ -4,10 +4,10 @@ package domain
 //go:generate mockery --name StockUseCase
 
 type StockRecord struct {
-	StockCode string
-	Type      string
-	Quantity  int64
-	Price     int64
+	StockCode string `json:"stock_code"`
+	Type      string `json:"type"`
+	Quantity  int64  `json:"quantity"`
+	Price     int64  `json:"price"`
 }
 type StockSummary struct {
 	StockCode string  `json:"stock_code"`
@@ -27,7 +27,7 @@ type StockRepo interface {
 }
 
 type StockUseCase interface {
-	QueueProcessor //implement this as well, so we can have this as parameter
+	QueueProcessor // shows this interface can process kafka message
 	ProcessFileData(rawData string) error
 	WriteStockSummary(record *StockRecord) error
 	GetStockSummary(stockCode string) (*StockSummary, error)
